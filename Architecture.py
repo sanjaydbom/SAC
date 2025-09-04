@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+from torch.distributions.normal import Normal
 
 class Actor(nn.Module):
     def __init__(self, OBSERVATION_DIM, ACTION_DIM, layers = [128,128]):
@@ -20,7 +21,11 @@ class Actor(nn.Module):
         x = self.end(x)
         means = x[:,:self.ACTION]
         std = torch.exp(torch.clamp(x[:,self.ACTION:], -20, 2))
-        return means, std
+        distribution = Normal(means, std)
+        unsqueezed_actions = distribution.rsample()
+        actions = torch.tanh(unsqueezed_actions)
+        log_probs = distribution.log_prob(actions)
+        return actions, log_probs
     
     def copy(self):
         temp_actor = Actor(self.OBS, self.ACTION)
