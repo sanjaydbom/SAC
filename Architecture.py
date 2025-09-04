@@ -7,6 +7,7 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         self.OBS = OBSERVATION_DIM
         self.ACTION = ACTION_DIM
+        self.layers = layers
         self.start = nn.Linear(OBSERVATION_DIM, layers[0])
         self.hidden = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(0,len(layers)-1)])
         self.end = nn.Linear(layers[-1], 2 * ACTION_DIM)
@@ -22,15 +23,18 @@ class Actor(nn.Module):
         means = x[:,:self.ACTION]
         std = torch.exp(torch.clamp(x[:,self.ACTION:], -20, 2))
         distribution = Normal(means, std)
-        unsqueezed_actions = distribution.rsample()
+        if torch.is_grad_enabled():
+            unsqueezed_actions = distribution.rsample()
+        else:
+            unsqueezed_actions = distribution.sample()
         actions = torch.tanh(unsqueezed_actions)
-        log_probs = distribution.log_prob(actions)
+        log_probs = distribution.log_prob(unsqueezed_actions)
         log_probs = log_probs.sum(dim = -1, keepdim=True)
         log_probs -= torch.log(1 - actions.pow(2) + 1e-6).sum(dim = -1, keepdim = True)
         return actions, log_probs
     
     def copy(self):
-        temp_actor = Actor(self.OBS, self.ACTION)
+        temp_actor = Actor(self.OBS, self.ACTION, self.layers)
         temp_actor.load_state_dict(self.state_dict())
         return temp_actor
     
@@ -43,6 +47,7 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         self.OBS = OBSERVATION_DIM
         self.ACTION = ACTION_DIM
+        self.layers = layers
         self.start1 = nn.Linear(OBSERVATION_DIM + ACTION_DIM, layers[0])
         self.hidden1 = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(0,len(layers)-1)])
         self.end1 = nn.Linear(layers[-1], 1)
@@ -72,7 +77,7 @@ class Critic(nn.Module):
         return x1, x2
     
     def copy(self):
-        temp_critic = Critic(self.OBS, self.ACTION)
+        temp_critic = Critic(self.OBS, self.ACTION, self.layers)
         temp_critic.load_state_dict(self.state_dict())
         return temp_critic
     
