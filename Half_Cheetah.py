@@ -49,11 +49,7 @@ for epoch in range(NUM_EPOCHS):
 
     while True:
         with torch.no_grad():
-            mean, std = actor(state)
-
-            distribution = Normal(mean, std)
-            action = torch.clamp(distribution.sample(),-1,1)
-
+            action, _ = actor(state)
             next_state, reward, terminated, truncated, _ = env.step(np.asarray(action[0]))
 
             next_state = torch.tensor(next_state, dtype = torch.float32)
@@ -75,14 +71,8 @@ for epoch in range(NUM_EPOCHS):
             done_array = torch.tensor(done_array, dtype = torch.float32)
 
             with torch.no_grad():
-                means, stds = target_actor(next_state_array)
-                distribution = Normal(means, stds)
-                best_next_actions_unclamped = distribution.sample()
-                best_next_actions = torch.tanh(best_next_actions_unclamped)
-                next_log_probs = distribution.log_prob(best_next_actions_unclamped).sum(dim = -1, keepdim=True)
-                next_log_probs -= torch.log(1 - best_next_actions.pow(2) + 1e-6).sum(dim = -1, keepdim = True)
-
-                target_state_action_value = reward_array.unsqueeze(1) + GAMMA * (torch.minimum(*target_critic(next_state_array, best_next_actions)) - alpha.detach() * (next_log_probs)) * (1 - done_array).unsqueeze(1)
+                best_next_actions, next_log_probs = target_actor(next_state_array)
+                target_state_action_value = reward_array.unsqueeze(1) + GAMMA * (torch.minimum(*target_critic(next_state_array, best_next_actions.detach())) - alpha.detach() * (next_log_probs.detach())) * (1 - done_array).unsqueeze(1)
             predicted_state_action_values = critic(state_array, action_array)
 
             critic_optim.zero_grad()
@@ -91,12 +81,7 @@ for epoch in range(NUM_EPOCHS):
             torch.nn.utils.clip_grad_norm_(critic.parameters(), 1.0)
             critic_optim.step()
 
-            means, stds = actor(state_array)
-            distribution = Normal(means, stds)
-            best_actions_unclamped = distribution.rsample()
-            best_actions = torch.tanh(best_actions_unclamped)
-            log_probs = distribution.log_prob(best_actions_unclamped).sum(dim = -1, keepdim = True)
-            log_probs -= torch.log(1 - best_actions.pow(2) + 1e-6).sum(dim = -1, keepdim = True)
+            best_actions, log_probs = actor(state_array)
 
             actor_optim.zero_grad()
             actor_loss = (-torch.minimum(*critic(state_array, best_actions)) + alpha.detach() * log_probs.sum(dim=-1)).mean()

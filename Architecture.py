@@ -25,6 +25,8 @@ class Actor(nn.Module):
         unsqueezed_actions = distribution.rsample()
         actions = torch.tanh(unsqueezed_actions)
         log_probs = distribution.log_prob(actions)
+        log_probs = log_probs.sum(dim = -1, keepdim=True)
+        log_probs -= torch.log(1 - actions.pow(2) + 1e-6).sum(dim = -1, keepdim = True)
         return actions, log_probs
     
     def copy(self):
