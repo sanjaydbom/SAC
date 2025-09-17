@@ -9,10 +9,10 @@ ALPHA_LR:
 
 GAMMA:  #Determines how much future rewards matter-dont use scientific notation
 TAU:  #How much to move target network toward actual network-dont use scientific notation
-TARGET_ALPHA: 
+TARGET_ALPHA: #Ideal goal for the weight of the entropy
 
-STD_CLAMP_MIN: 
-STD_CLAMP_MAX:
+STD_CLAMP_MIN: #Minimum value of the standard deviation values of the output
+STD_CLAMP_MAX: #Maximum value of the standard deviation values of the output
 
 NUM_EPOCHS:  #Number of training runs to do-Integer
 BATCH_SIZE:  #Number of experiences to train on during training step-Integer

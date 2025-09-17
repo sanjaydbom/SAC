@@ -22,22 +22,22 @@ OBS_DIM = env.observation_space.shape[0]
 action_range = torch.tensor(env.action_space.high)
 
 actor, target_actor, critic, target_critic = get_architecture(OBS_DIM, ACTION_DIM, hyperparams['ACTOR_HIDDEN_LAYERS'], hyperparams['CRITIC_HIDDEN_LAYERS'], action_range, hyperparams['TAU'], hyperparams['STD_CLAMP_MIN'], hyperparams['STD_CLAMP_MAX'])
-actor_optim = optim.Adam(actor.parameters(), hyperparams['ACTOR_LR'])
-critic_optim = optim.Adam(critic.parameters(), hyperparams['CRITIC_LR'])
+actor_optim = optim.Adam(actor.parameters(), float(hyperparams['ACTOR_LR']))
+critic_optim = optim.Adam(critic.parameters(), float(hyperparams['CRITIC_LR']))
 
 GAMMA = hyperparams['GAMMA']
 TARGET_ALPHA = hyperparams['TARGET_ALPHA']
 
-alpha = torch.tensor([0.2], dtype = torch.float32, requires_grad=True)
-alpha_optim = optim.Adam([alpha], hyperparams['ALPHA_LR'])
+alpha = torch.tensor([[0.2]], dtype = torch.float32, requires_grad=True)
+alpha_optim = optim.Adam([alpha], float(hyperparams['ALPHA_LR']))
 
 NUM_EPOCHS = hyperparams['NUM_EPOCHS']
 BATCH_SIZE = hyperparams['BATCH_SIZE']
 EXPERIENCE_REPLAY_LENGTH = hyperparams['EXPERIENCE_REPLAY_LENGTH']
 TRAINING_START_STEP = hyperparams['TRAINING_START_STEP']
 
-LOGGING_FREQ = hyperparams['LOGGING_FREQ']
-SLIDING_WINDOW_AVERAGE = hyperparams['SLIDING_WINDOW_AVERAGE']
+LOGGING_FREQ = hyperparams['LOGGINIG_FREQUECY']
+SLIDING_WINDOW_AVERAGE = hyperparams['SLIDING_WINDOW_SIZE']
 
 mse = nn.MSELoss()
 rewards_over_time = []
@@ -88,7 +88,7 @@ for epoch in range(NUM_EPOCHS):
             best_actions, log_probs = actor(state_array)
 
             actor_optim.zero_grad()
-            actor_loss = (-torch.minimum(*critic(state_array, best_actions)) + alpha * log_probs.sum(dim=-1)).mean()
+            actor_loss = (-torch.minimum(*critic(state_array, best_actions)) + alpha.detach() * log_probs.sum(dim=-1)).mean()
             actor_loss.backward()
             actor_optim.step()
 
@@ -100,12 +100,13 @@ for epoch in range(NUM_EPOCHS):
             target_actor.update(actor)
             target_critic.update(critic)
 
-            loss_array.append((actor_loss.detach().itme(), critic_loss.detach().item(), alpha_loss.detach().item()))
+
+            loss_array.append((actor_loss.detach().item(), critic_loss.detach().item(), alpha_loss.detach().item()))
 
         if terminated or truncated:
             break
 
-    rewards_over_time.append(current_reward)
+    rewards_over_time.append(current_reward.item())
 
     if epoch % LOGGING_FREQ == 0 and epoch != 0:
         print(f"Epoch {epoch}: Current Reward {rewards_over_time[-1]:.2f} Average Reward (Last {SLIDING_WINDOW_AVERAGE}) {np.mean(rewards_over_time[max(0,epoch-SLIDING_WINDOW_AVERAGE):]):.2f}")
@@ -117,9 +118,10 @@ with open(hyperparams['FILE_NAME'] + 'TrainingLoss.csv', 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerows(loss_array)
 
+temp_reward_array = [[reward] for reward in rewards_over_time]
 with open(hyperparams['FILE_NAME'] + 'TrainingRewards.csv', 'w', newline='') as f:
     writer = csv.writer(f)
-    writer.writerows(rewards_over_time)
+    writer.writerows(temp_reward_array)
 
 plt.plot(rewards_over_time, color = 'blue', label = "Rewards Over Time")
 plt.plot([np.mean(rewards_over_time[max(0, epoch-50) : epoch+1]) for epoch in range(NUM_EPOCHS)], color = 'red', label = "Average Rewards")

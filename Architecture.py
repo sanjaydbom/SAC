@@ -35,11 +35,11 @@ class Actor(nn.Module):
         actions = self.action_range * torch.tanh(unsqueezed_actions)
         log_probs = distribution.log_prob(unsqueezed_actions)
         log_probs = log_probs.sum(dim = -1, keepdim=True)
-        log_probs -= torch.log(self.action_range * (1 - actions.pow(2))+ 1e-6).sum(dim = -1, keepdim = True)
+        log_probs -= torch.log(self.action_range * (1 - (actions / self.action_range).pow(2)) + 1e-6).sum(dim = -1, keepdim = True)
         return actions, log_probs
     
     def copy(self):
-        temp_actor = Actor(self.OBS, self.ACTION, self.layers)
+        temp_actor = Actor(self.OBS, self.ACTION, self.layers, self.action_range, self.tau, self.std_clamp_min, self.std_clamp_max)
         temp_actor.load_state_dict(self.state_dict())
         return temp_actor
     
@@ -84,7 +84,7 @@ class Critic(nn.Module):
         return x1, x2
     
     def copy(self):
-        temp_critic = Critic(self.OBS, self.ACTION, self.layers)
+        temp_critic = Critic(self.OBS, self.ACTION, self.layers, self.tau)
         temp_critic.load_state_dict(self.state_dict())
         return temp_critic
     
