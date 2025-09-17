@@ -1,0 +1,27 @@
+ENV_NAME: "HalfCheetah-v5" #Name of the environment
+
+ACTOR_HIDDEN_LAYERS: [256, 256 ] #Hidden Layers for Actor. Don't include the input and output layer
+CRITIC_HIDDEN_LAYERS: [256, 256] #Hidden Layers for Critic. Don't include the input and output layer
+
+ACTOR_LR: 3e-4 #Actor Learning Rate-use scientific notation
+CRITIC_LR: 3e-4 #Critic Learning Rate-use scientific notation
+ALPHA_LR: 3e-4
+
+GAMMA: 0.99 #Determines how much future rewards matter-dont use scientific notation
+TAU: 0.001 #How much to move target network toward actual network-dont use scientific notation
+TARGET_ALPHA: -6 #Ideal goal for the weight of the entropy
+
+STD_CLAMP_MIN: -5 #Minimum value of the standard deviation values of the output
+STD_CLAMP_MAX: 1 #Maximum value of the standard deviation values of the output
+
+NUM_EPOCHS: 1000 #Number of training runs to do-Integer
+BATCH_SIZE: 128 #Number of experiences to train on during training step-Integer
+TRAINING_START_STEP: 10000 #Minimum number of experiences needed to start training-Integer, must be greater than batch size
+EXPERIENCE_REPLAY_LENGTH: 300000 #Size of the experience array-Integer
+
+LOGGINIG_FREQUECY: 50 #How often to test the agent and print stats-Integer
+SLIDING_WINDOW_SIZE: 100 #Size of the sliding window of the rewards to get average-Integer
+
+FILE_NAME: './HalfCheetah/HalfCheetah' #General File Name-string of path to file
+
+NUM_TESTS: 1000 #Number of tests-Integer
