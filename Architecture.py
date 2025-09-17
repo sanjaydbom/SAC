@@ -91,3 +91,10 @@ class Critic(nn.Module):
     def update(self, critic):
         for params, target_params in zip(critic.parameters(), self.parameters()):
             target_params.data.copy_(self.tau * params + (1 - self.tau) * target_params)
+
+def get_architecture(OBSERVATION_DIM, ACTION_DIM, actor_layers, critic_layers, action_range, tau, std_clamp_min, std_clamp_max):
+    actor = Actor(OBSERVATION_DIM, ACTION_DIM, actor_layers, action_range, tau, std_clamp_min, std_clamp_max)
+    critic = Critic(OBSERVATION_DIM, ACTION_DIM, critic_layers, tau)
+    target_actor = actor.copy()
+    target_critic = critic.copy()
+    return actor, target_actor, critic, target_critic
