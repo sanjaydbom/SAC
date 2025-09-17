@@ -16,12 +16,12 @@ hyperparams_file_name = sys.argv[1] + "/hyperparameters.yml"
 with open(hyperparams_file_name, 'r') as f:
     hyperparams = yaml.safe_load(f)
 
-env = gym.make(hyperparams['env_name'])
+env = gym.make(hyperparams['ENV_NAME'])
 ACTION_DIM = env.action_space.shape[0]
 OBS_DIM = env.observation_space.shape[0]
 action_range = torch.tensor(env.action_space.high)
 
-actor, target_actor, critic, target_critic = get_architecture(OBS_DIM, ACTION_DIM, hyperparams['actor_hidden_layers'], hyperparams['critic_hidden_layers'], action_range, hyperparams['TAU'], hyperparams['std_clamp_min'], hyperparams['std_clamp_max'])
+actor, target_actor, critic, target_critic = get_architecture(OBS_DIM, ACTION_DIM, hyperparams['ACTOR_HIDDEN_LAYERS'], hyperparams['CRITIC_HIDDEN_LAYERS'], action_range, hyperparams['TAU'], hyperparams['STD_CLAMP_MIN'], hyperparams['STD_CLAMP_MAX'])
 actor_optim = optim.Adam(actor.parameters(), hyperparams['ACTOR_LR'])
 critic_optim = optim.Adam(critic.parameters(), hyperparams['CRITIC_LR'])
 
@@ -113,9 +113,13 @@ for epoch in range(NUM_EPOCHS):
             best_reward = np.mean(rewards_over_time[max(0,epoch-SLIDING_WINDOW_AVERAGE):])
             torch.save(actor.state_dict(), hyperparams['FILE_NAME'] + '.pt')
 
-with open(hyperparams['FILE_NAME'] + 'TrainingData.csv', 'w', newline='') as f:
+with open(hyperparams['FILE_NAME'] + 'TrainingLoss.csv', 'w', newline='') as f:
     writer = csv.writer(f)
     writer.writerows(loss_array)
+
+with open(hyperparams['FILE_NAME'] + 'TrainingRewards.csv', 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerows(rewards_over_time)
 
 plt.plot(rewards_over_time, color = 'blue', label = "Rewards Over Time")
 plt.plot([np.mean(rewards_over_time[max(0, epoch-50) : epoch+1]) for epoch in range(NUM_EPOCHS)], color = 'red', label = "Average Rewards")
