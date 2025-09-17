@@ -3,11 +3,16 @@ import torch
 from torch.distributions.normal import Normal
 
 class Actor(nn.Module):
-    def __init__(self, OBSERVATION_DIM, ACTION_DIM, layers = [128,128]):
+    def __init__(self, OBSERVATION_DIM, ACTION_DIM, layers, action_range, tau, std_clamp_min, std_clamp_max):
         super(Actor, self).__init__()
         self.OBS = OBSERVATION_DIM
         self.ACTION = ACTION_DIM
         self.layers = layers
+        self.tau = tau
+        self.action_range = action_range
+        self.std_clamp_min = std_clamp_min
+        self.std_clamp_max = std_clamp_max
+
         self.start = nn.Linear(OBSERVATION_DIM, layers[0])
         self.hidden = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(0,len(layers)-1)])
         self.end = nn.Linear(layers[-1], 2 * ACTION_DIM)
@@ -21,16 +26,16 @@ class Actor(nn.Module):
             x = self.relu(x)
         x = self.end(x)
         means = x[:,:self.ACTION]
-        std = torch.exp(torch.clamp(x[:,self.ACTION:], -20, 2))
+        std = torch.exp(torch.clamp(x[:,self.ACTION:], self.std_clamp_min, self.std_clamp_max))
         distribution = Normal(means, std)
         if torch.is_grad_enabled():
             unsqueezed_actions = distribution.rsample()
         else:
             unsqueezed_actions = distribution.sample()
-        actions = torch.tanh(unsqueezed_actions)
+        actions = self.action_range * torch.tanh(unsqueezed_actions)
         log_probs = distribution.log_prob(unsqueezed_actions)
         log_probs = log_probs.sum(dim = -1, keepdim=True)
-        log_probs -= torch.log(1 - actions.pow(2) + 1e-6).sum(dim = -1, keepdim = True)
+        log_probs -= torch.log(self.action_range * (1 - actions.pow(2))+ 1e-6).sum(dim = -1, keepdim = True)
         return actions, log_probs
     
     def copy(self):
@@ -38,16 +43,18 @@ class Actor(nn.Module):
         temp_actor.load_state_dict(self.state_dict())
         return temp_actor
     
-    def update(self, actor, TAU):
+    def update(self, actor):
         for params, target_params in zip(actor.parameters(), self.parameters()):
-            target_params.data.copy_(TAU * params + (1 - TAU) * target_params)
+            target_params.data.copy_(self.tau * params + (1 - self.tau) * target_params)
 
 class Critic(nn.Module):
-    def __init__(self, OBSERVATION_DIM, ACTION_DIM, layers = [128,128]):
+    def __init__(self, OBSERVATION_DIM, ACTION_DIM, layers, tau):
         super(Critic, self).__init__()
         self.OBS = OBSERVATION_DIM
         self.ACTION = ACTION_DIM
         self.layers = layers
+        self.tau = tau
+
         self.start1 = nn.Linear(OBSERVATION_DIM + ACTION_DIM, layers[0])
         self.hidden1 = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(0,len(layers)-1)])
         self.end1 = nn.Linear(layers[-1], 1)
@@ -81,6 +88,6 @@ class Critic(nn.Module):
         temp_critic.load_state_dict(self.state_dict())
         return temp_critic
     
-    def update(self, critic, TAU):
+    def update(self, critic):
         for params, target_params in zip(critic.parameters(), self.parameters()):
-            target_params.data.copy_(TAU * params + (1 - TAU) * target_params)
+            target_params.data.copy_(self.tau * params + (1 - self.tau) * target_params)
